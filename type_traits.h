@@ -443,7 +443,7 @@ template <typename Base, typename Derived>
 inline constexpr bool is_base_of_v = is_base_of<Base, Derived>::value;
 
 // is_convertible
-template<typename From, typename To>
+template <typename From, typename To>
 struct is_convertible;
 template <typename From, typename To>
 inline constexpr bool is_convertible_v = is_convertible<From, To>::value;
@@ -452,12 +452,40 @@ inline constexpr bool is_convertible_v = is_convertible<From, To>::value;
 template <typename From, typename To>
 struct is_nothrow_convertible;
 template <typename From, typename To>
-inline constexpr bool is_nothrow_convertible_v = is_nothrow_convertible<From, To>::value;
+inline constexpr bool is_nothrow_convertible_v =
+    is_nothrow_convertible<From, To>::value;
+
+// is_invocable
+template <typename Fn, typename... ArgTypes>
+struct is_invocable;
+template <typename Fn, typename... ArgTypes>
+inline constexpr bool is_invocable_v = is_invocable<Fn, ArgTypes...>::value;
+
+// is_invocable_r
+template <typename R, typename Fn, typename... ArgTypes>
+struct is_invocable_r;
+template <typename R, typename Fn, typename... ArgTypes>
+inline constexpr bool is_invocable_r_v =
+    is_invocable_r<R, Fn, ArgTypes...>::value;
+
+// is_nothrow_invocable
+template <typename Fn, typename... ArgTypes>
+struct is_nothrow_invocable;
+template <typename Fn, typename... ArgTypes>
+inline constexpr bool is_nothrow_invocable_v =
+    is_nothrow_invocable<Fn, ArgTypes...>::value;
+
+// is_nothrow_invocable_r
+template <typename R, typename Fn, typename... ArgTypes>
+struct is_nothrow_invocable_r;
+template <typename R, typename Fn, typename... ArgTypes>
+inline constexpr bool is_nothrow_invocable_r_v =
+    is_nothrow_invocable_r<R, Fn, ArgTypes...>::value;
 
 /*=====================Operations on traits===================*/
 
 // conjunction
-template<typename... B>
+template <typename... B>
 struct conjunction;
 template <typename... B>
 inline constexpr bool conjunction_v = conjunction<B...>::value;
@@ -477,11 +505,11 @@ inline constexpr bool negation_v = negation<B...>::value;
 /*=========================Base classes=======================*/
 
 // integral_constant
-template<typename T, T v>
+template <typename T, T v>
 struct integral_constant;
 
 // bool_constant
-template<bool B>
+template <bool B>
 using bool_constant = integral_constant<bool, B>;
 
 using true_type = bool_constant<true>;
@@ -490,6 +518,8 @@ using false_type = bool_constant<false>;
 /*============================================================
 ======================Type modifications======================
 ==============================================================*/
+
+/*=================Const-volatility specifiers================*/
 
 // remove_cv
 template <typename T>
@@ -527,6 +557,8 @@ struct add_volatile;
 template <typename T>
 using add_volatile_t = typename add_volatile<T>::type;
 
+/*========================References==========================*/
+
 // remove_reference
 template <typename T>
 struct remove_reference;
@@ -545,6 +577,8 @@ struct add_rvalue_reference;
 template <typename T>
 using add_rvalue_reference_t = typename add_rvalue_reference<T>::type;
 
+/*==========================Pointers===========================*/
+
 // remove_pointer
 template <typename T>
 struct remove_pointer;
@@ -556,6 +590,8 @@ template <typename T>
 struct add_pointer;
 template <typename T>
 using add_pointer_t = typename add_pointer<T>::type;
+
+/*======================Sign modifiers=========================*/
 
 // make_signed
 template <typename T>
@@ -569,6 +605,8 @@ struct make_unsigned;
 template <typename T>
 using make_unsigned_t = typename make_unsigned<T>::type;
 
+/*===========================Arrays============================*/
+
 // remove_extent
 template <typename T>
 struct remove_extent;
@@ -580,6 +618,8 @@ template <typename T>
 struct remove_all_extents;
 template <typename T>
 using remove_all_extents_t = typename remove_all_extents<T>::type;
+
+/*================Miscellaneous transformations===============*/
 
 // decay
 template <typename T>
@@ -606,7 +646,7 @@ template <bool B, typename T, typename F>
 using conditional_t = typename conditional<B, T, F>::type;
 
 // common_type
-template<typename... T>
+template <typename... T>
 struct common_type;
 template <typename... T>
 using common_type_t = typename common_type<T...>::type;
