@@ -422,6 +422,7 @@ void TestIsStandardLayout() {
   };
   struct B {
     int m1;
+
    private:
     int m2;
   };
@@ -441,6 +442,7 @@ void TestIsPod() {
   };
   struct B {
     int m1;
+
    private:
     int m2;
   };
@@ -543,6 +545,296 @@ void TestIsAggregate() {
   };
   static_assert(stl::is_aggregate_v<A>);
   static_assert(!stl::is_aggregate_v<B>);
+}
+
+// is_signed
+void TestIsSigned() {
+  class A {};
+  enum B : int {};
+  enum class C : int {};
+
+  static_assert(stl::is_signed<A>::value == false);
+  static_assert(stl::is_signed<float>::value == true);
+  static_assert(stl::is_signed<signed int>::value == true);
+  static_assert(stl::is_signed<unsigned int>::value == false);
+  static_assert(stl::is_signed<B>::value == false);
+  static_assert(stl::is_signed<C>::value == false);
+
+  static_assert(stl::is_signed_v<bool> == false);
+  static_assert(stl::is_signed<signed int>() == true);
+  static_assert(stl::is_signed<unsigned int>{} == false);
+  static_assert(stl::is_signed_v<signed char> == true);
+  static_assert(stl::is_signed_v<unsigned char> == false);
+}
+
+// is_unsigned
+void TestIsUnsigned() {
+  class A {};
+  static_assert(std::is_unsigned_v<A> == false);
+  enum B : unsigned {};
+  static_assert(std::is_unsigned_v<B> == false);
+  enum class C : unsigned {};
+  static_assert(std::is_unsigned_v<C> == false);
+  struct S {
+    unsigned p : 1;
+    int q : 1;
+  };
+  static_assert(std::is_unsigned_v<decltype(S::p)> not_eq
+                std::is_unsigned_v<decltype(S::q)>);
+  static_assert(std::is_unsigned_v<float> == false &&
+                std::is_unsigned_v<signed int> == false &&
+                std::is_unsigned_v<unsigned int> == true &&
+                std::is_unsigned_v<bool> == true);
+}
+
+// is_bounded_array
+void TestIsBoundedArray() {
+  class A {};
+  static_assert(!stl::is_bounded_array_v<A>);
+  static_assert(!stl::is_bounded_array_v<A[]>);
+  static_assert(stl::is_bounded_array_v<A[3]>);
+  static_assert(!stl::is_bounded_array_v<float>);
+  static_assert(!stl::is_bounded_array_v<int>);
+  static_assert(!stl::is_bounded_array_v<int[]>);
+  static_assert(stl::is_bounded_array_v<int[3]>);
+}
+
+// is_unbounded_array
+void TestIsUnboundedArray() {
+  class A {};
+  static_assert(!stl::is_unbounded_array_v<A>);
+  static_assert(stl::is_unbounded_array_v<A[]>);
+  static_assert(!stl::is_unbounded_array_v<A[3]>);
+  static_assert(!stl::is_unbounded_array_v<float>);
+  static_assert(!stl::is_unbounded_array_v<int>);
+  static_assert(stl::is_unbounded_array_v<int[]>);
+  static_assert(!stl::is_unbounded_array_v<int[3]>);
+}
+
+// is_default_constructible / is_trivially_constructible /
+// is_nothrow_constructible
+void TestIsConstructible() {
+  class Foo {
+    int v1;
+    double v2;
+
+   public:
+    Foo(int n) : v1(n), v2() {}
+    Foo(int n, double f) noexcept : v1(n), v2(f) {}
+  };
+
+  static_assert(stl::is_constructible_v<Foo, int>);
+  static_assert(stl::is_trivially_constructible_v<Foo, const Foo&>);
+  static_assert(!stl::is_trivially_constructible_v<Foo, int>);
+}
+
+// is_default_constructible / is_trivially_default_constructible /
+// is_nothrow_default_constructible
+
+void TestIsDefaultConstructible() {
+  struct Ex1 {
+    std::string str;  // member has a non-trivial default ctor
+  };
+
+  struct Ex2 {
+    int n;
+    Ex2() = default;  // trivial and non-throwing
+  };
+  static_assert(stl::is_default_constructible<Ex1>::value);
+  static_assert(!stl::is_trivially_default_constructible_v<Ex1>);
+  static_assert(stl::is_trivially_default_constructible_v<Ex2>);
+  static_assert(stl::is_nothrow_default_constructible_v<Ex2>);
+}
+
+// is_copy_constructible / is_trivially_copy_constructible /
+// is_nothrow_copy_constructible
+void TestIsCopyConstructible() {
+  struct Ex1 {
+    std::string str;  // member has a non-trivial copy ctor
+  };
+
+  struct Ex2 {
+    int n;
+    Ex2(const Ex2&) = default;  // trivial and non-throwing
+  };
+  static_assert(stl::is_copy_constructible_v<Ex1>);
+  static_assert(!stl::is_trivially_copy_constructible_v<Ex1>);
+  static_assert(stl::is_trivially_copy_constructible_v<Ex2>);
+  static_assert(stl::is_nothrow_copy_constructible_v<Ex2>);
+}
+
+// is_move_constructible / is_trivially_move_constructible /
+// is_nothrow_move_constructible
+void TestIsMoveConstructible() {
+  struct Ex1 {
+    std::string str;  // member has a non-trivial but non-throwing move ctor
+  };
+  struct Ex2 {
+    int n;
+    Ex2(Ex2&&) = default;  // trivial and non-throwing
+  };
+  struct NoMove {
+    // prevents implicit declaration of default move constructor
+    // however, the class is still move-constructible because its
+    // copy constructor can bind to an rvalue argument
+    NoMove(const NoMove&) {}
+  };
+
+  static_assert(stl::is_move_constructible_v<Ex1>);
+  static_assert(!stl::is_trivially_move_constructible_v<Ex1>);
+  static_assert(stl::is_nothrow_move_constructible_v<Ex1>);
+  static_assert(stl::is_trivially_move_constructible_v<Ex2>);
+  static_assert(stl::is_nothrow_move_constructible_v<Ex2>);
+  static_assert(stl::is_move_constructible_v<NoMove>);
+  static_assert(!stl::is_nothrow_move_constructible_v<NoMove>);
+}
+
+// is_assignable / is_trivially_assignable / is_nothrow_assignable
+void TestIsAssignable() {
+  struct Ex1 {
+    int n;
+  };
+  static_assert(!stl::is_assignable_v<int, int>);  // 1 = 1; wouldn't compile
+  static_assert(stl::is_assignable_v<int&, int>);  // int a; a = 1; works
+  static_assert(!stl::is_assignable_v<int, double>);
+  static_assert(stl::is_nothrow_assignable_v<int&, double>);
+  static_assert(stl::is_assignable_v<std::string, double>);
+  static_assert(stl::is_trivially_assignable_v<Ex1&, const Ex1&>);
+}
+
+// is_copy_assignable / is_trivially_copy_assignable /
+// is_nothrow_copy_assignable
+void TestIsCopyAssignable() {
+  struct Foo {
+    int n;
+  };
+  static_assert(stl::is_trivially_copy_assignable<Foo>::value);
+  static_assert(!stl::is_copy_assignable<int[2]>::value);
+  static_assert(stl::is_nothrow_copy_assignable<int>::value);
+}
+
+// is_move_assignable / is_trivially_move_assignable /
+// is_nothrow_move_assignable
+void TestIsMoveAssignable() {
+  struct Foo {
+    int n;
+  };
+
+  struct NoMove {
+    // prevents implicit declaration of default move assignment operator
+    // however, the class is still move-assignable because its
+    // copy assignment operator can bind to an rvalue argument
+    NoMove& operator=(const NoMove&) { return *this; }
+  };
+  static_assert(stl::is_nothrow_move_assignable_v<std::string>);
+  static_assert(!stl::is_move_assignable_v<int[2]>);
+  static_assert(stl::is_trivially_move_assignable_v<Foo>);
+  static_assert(stl::is_move_assignable_v<NoMove>);
+  static_assert(!stl::is_nothrow_move_assignable_v<NoMove>);
+}
+
+// is_destructible / is_trivially_destructible / is_nothrow_destructible
+void TestIsDestructible() {
+  struct Foo {
+    std::string str;
+    ~Foo() noexcept {};
+  };
+  struct Bar {
+    ~Bar() = default;
+  };
+  static_assert(stl::is_destructible<std::string>::value);
+  static_assert(!stl::is_trivially_destructible_v<Foo>);
+  static_assert(stl::is_nothrow_destructible<Foo>());
+  static_assert(stl::is_trivially_destructible<Bar>{});
+}
+
+// has_virtual_destructor
+void TestHasVirtualDestructor() {
+  struct S {};
+  static_assert(!stl::has_virtual_destructor_v<S>);
+
+  struct B {
+    virtual ~B() { std::puts("B::~B"); }
+  };
+  static_assert(stl::has_virtual_destructor_v<B>);
+
+  struct D : B {
+    ~D() { std::puts("D::~D"); }
+  };
+  static_assert(stl::has_virtual_destructor_v<D>);
+}
+
+// alignment_of
+void TestAlignmentOf() {
+  struct A {};
+  struct B {
+    std::int8_t p;
+    std::int16_t q;
+  };
+
+  static_assert(stl::alignment_of<A>::value == 1);
+  static_assert(stl::alignment_of<B>::value == 2);
+  static_assert(stl::alignment_of<int>() == 4);
+  static_assert(stl::alignment_of_v<double> == 8);
+}
+
+// rank
+void TestRank() {
+  static_assert(std::rank<int>{} == 0 && std::rank<int[5]>{} == 1 &&
+                std::rank<int[5][5]>{} == 2 && std::rank<int[][5][5]>{} == 3);
+
+  [[maybe_unused]] int ary[][3] = {{1, 2, 3}};
+  // The reason of rank of "ary[0]" is calculated as 0
+  static_assert(std::rank_v<decltype(ary[0])> == 0);
+  // is that rank cannot deal with reference type. i.e. int(&)[3]
+  static_assert(std::is_same_v<decltype(ary[0]), int(&)[3]>);
+  // The solution is to remove reference type
+  static_assert(std::rank_v<stl::remove_cvref_t<decltype(ary[0])>> == 1);
+}
+
+// extent
+void TestExtent() {
+  static_assert(stl::extent_v<int[3]> == 3);
+  static_assert(stl::extent_v<int[3][4], 0> == 3);
+  static_assert(stl::extent_v<int[3][4], 1> == 4);
+  static_assert(stl::extent_v<int[3][4], 2> == 0);
+  static_assert(stl::extent_v<int[]> == 0);
+
+  const int ints[] = {1, 2, 3, 4};
+  static_assert(stl::extent<decltype(ints)>::value == 4);
+}
+
+// is_same
+void TestIsSame() {
+  // usually true if 'int' is 32 bit
+  static_assert(stl::is_same<int, std::int32_t>::value);  // maybe true
+  // possibly true if ILP64 data model is used
+  static_assert(!stl::is_same<int, std::int64_t>::value);  // maybe false
+
+  // same tests as above, except using C++17's std::is_same_v<T, U> format
+  static_assert(stl::is_same_v<int, std::int32_t>);
+  static_assert(!stl::is_same_v<int, std::int64_t>);
+
+  // compare the types of a couple variables
+  long double num1 = 1.0;
+  long double num2 = 2.0;
+  static_assert(stl::is_same_v<decltype(num1), decltype(num2)> == true);
+
+  // 'float' is never an integral type
+  static_assert(stl::is_same<float, std::int32_t>::value == false);
+
+  // 'int' is implicitly 'signed'
+  static_assert(stl::is_same_v<int, int> == true);
+  static_assert(stl::is_same_v<int, unsigned int> == false);
+  static_assert(stl::is_same_v<int, signed int> == true);
+
+  // unlike other types, 'char' is neither 'unsigned' nor 'signed'
+  static_assert(stl::is_same_v<char, char> == true);
+  static_assert(stl::is_same_v<char, unsigned char> == false);
+  static_assert(stl::is_same_v<char, signed char> == false);
+
+  // const-qualified type T is not same as non-const T
+  static_assert(!stl::is_same<const int, int>());
 }
 
 // remove_cv
