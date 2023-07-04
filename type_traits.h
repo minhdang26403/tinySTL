@@ -866,18 +866,30 @@ struct is_unbounded_array<T[]> : true_type {};
 
 /*====================Supported operations====================*/
 
-struct is_constructible_helper {
-  template <typename T, typename... Args,
-            typename = decltype(T(std::declval<Args>()...))>
-  static true_type test(int);
-  template <typename, typename...>
-  static false_type test(...);
-};
-
 // is_constructible
+
+// function overloads approach
+// struct is_constructible_helper {
+//   template <typename T, typename... Args,
+//             typename = decltype(T(std::declval<Args>()...))>
+//   static true_type test(int);
+//   template <typename, typename...>
+//   static false_type test(...);
+// };
+
+// template <typename T, typename... Args>
+// struct is_constructible
+//     : decltype(is_constructible_helper::test<T, Args...>(0)) {};
+
+// partial specializations approach
+template <typename AlwaysVoid, typename T, typename... Args>
+struct is_constructible_impl : false_type {};
 template <typename T, typename... Args>
-struct is_constructible
-    : decltype(is_constructible_helper::test<T, Args...>(0)) {};
+struct is_constructible_impl<void_t<decltype(T(std::declval<Args>()...))>, T,
+                             Args...> : true_type {};
+
+template <typename T, typename... Args>
+struct is_constructible : is_constructible_impl<void, T, Args...> {};
 
 // is_trivially_constructible
 template <typename T, typename... Args>
@@ -931,17 +943,29 @@ template <typename T>
 struct is_nothrow_move_constructible
     : is_nothrow_constructible<T, add_rvalue_reference_t<T>> {};
 
-struct is_assignable_helper {
-  template <typename T, typename U,
-            typename = decltype(std::declval<T>() = std::declval<U>())>
-  static true_type test(int);
-  template <typename, typename>
-  static false_type test(...);
+// is_assignable
+// function overloads approach
+// struct is_assignable_helper {
+//   template <typename T, typename U,
+//             typename = decltype(std::declval<T>() = std::declval<U>())>
+//   static true_type test(int);
+//   template <typename, typename>
+//   static false_type test(...);
+// };
+
+// template <typename T, typename U>
+// struct is_assignable : decltype(is_assignable_helper::test<T, U>(0)) {};
+
+// partial specializations approach
+template <typename T, typename U, typename = void>
+struct is_assignable_impl : false_type {};
+template <typename T, typename U>
+struct is_assignable_impl<
+    T, U, void_t<decltype(std::declval<T>() = std::declval<U>())>> : true_type {
 };
 
-// is_assignable
 template <typename T, typename U>
-struct is_assignable : decltype(is_assignable_helper::test<T, U>(0)) {};
+struct is_assignable : is_assignable_impl<T, U> {};
 
 // is_trivially_assignable
 template <typename T, typename U>
@@ -993,21 +1017,36 @@ struct is_nothrow_move_assignable
 //  if it's an array of unknown bound, return false
 //  Otherwise, return "declval<U&>().~U()" is well-formed
 //    where U is remove_all_extents<T>::type
-struct is_destructible_helper {
-  template <typename U, typename = decltype(std::declval<U&>().~U())>
-  static true_type test(int);
-  template <typename, typename>
-  static false_type test(...);
-};
+// struct is_destructible_helper {
+//   template <typename U, typename = decltype(std::declval<U&>().~U())>
+//   static true_type test(int);
+//   template <typename, typename>
+//   static false_type test(...);
+// };
+
+// template <typename T>
+// struct is_destructible
+//     : conditional_t<is_reference_v<T>, true_type,
+//                     conditional_t<is_void_v<T> || is_function_v<T> ||
+//                                       is_unbounded_array_v<T>,
+//                                   false_type,
+//                                   decltype(is_destructible_helper::test<
+//                                            remove_all_extents_t<T>>(0))>> {};
+
+template <typename U, typename = void>
+struct is_destructible_impl : false_type {};
+template <typename U>
+struct is_destructible_impl<U, void_t<decltype(std::declval<U&>().~U())>>
+    : true_type {};
 
 template <typename T>
 struct is_destructible
-    : conditional_t<is_reference_v<T>, true_type,
-                    conditional_t<is_void_v<T> || is_function_v<T> ||
-                                      is_unbounded_array_v<T>,
-                                  false_type,
-                                  decltype(is_destructible_helper::test<
-                                           remove_all_extents_t<T>>(0))>> {};
+    : conditional_t<
+          is_reference_v<T>, true_type,
+          conditional_t<
+              is_void_v<T> || is_function_v<T> || is_unbounded_array_v<T>,
+              false_type,
+              typename is_destructible_impl<remove_all_extents_t<T>>::type>> {};
 
 // is_trivially_destructible
 template <typename T>
