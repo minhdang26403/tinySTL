@@ -10,6 +10,26 @@ using size_t = decltype(sizeof(unsigned int));
 ==========================Declaration=========================
 ==============================================================*/
 
+/*=========================Base classes=======================*/
+
+// integral_constant
+template <typename T, T v>
+struct integral_constant {
+  static constexpr T value = v;
+  using value_type = T;
+  using type = integral_constant;  // injected class name
+
+  constexpr operator value_type() const noexcept { return v; }
+  constexpr value_type operator()() const noexcept { return v; }
+};
+
+// bool_constant
+template <bool B>
+using bool_constant = integral_constant<bool, B>;
+
+using true_type = bool_constant<true>;
+using false_type = bool_constant<false>;
+
 /*============================================================
 ========================Type property=========================
 ==============================================================*/
@@ -448,13 +468,6 @@ struct is_convertible;
 template <typename From, typename To>
 inline constexpr bool is_convertible_v = is_convertible<From, To>::value;
 
-// is_nothrow_convertible
-template <typename From, typename To>
-struct is_nothrow_convertible;
-template <typename From, typename To>
-inline constexpr bool is_nothrow_convertible_v =
-    is_nothrow_convertible<From, To>::value;
-
 // is_invocable
 template <typename Fn, typename... ArgTypes>
 struct is_invocable;
@@ -467,20 +480,6 @@ struct is_invocable_r;
 template <typename R, typename Fn, typename... ArgTypes>
 inline constexpr bool is_invocable_r_v =
     is_invocable_r<R, Fn, ArgTypes...>::value;
-
-// is_nothrow_invocable
-template <typename Fn, typename... ArgTypes>
-struct is_nothrow_invocable;
-template <typename Fn, typename... ArgTypes>
-inline constexpr bool is_nothrow_invocable_v =
-    is_nothrow_invocable<Fn, ArgTypes...>::value;
-
-// is_nothrow_invocable_r
-template <typename R, typename Fn, typename... ArgTypes>
-struct is_nothrow_invocable_r;
-template <typename R, typename Fn, typename... ArgTypes>
-inline constexpr bool is_nothrow_invocable_r_v =
-    is_nothrow_invocable_r<R, Fn, ArgTypes...>::value;
 
 /*=====================Operations on traits===================*/
 
@@ -497,23 +496,10 @@ template <typename... B>
 inline constexpr bool disjunction_v = disjunction<B...>::value;
 
 // negation
-template <typename... B>
+template <typename B>
 struct negation;
-template <typename... B>
-inline constexpr bool negation_v = negation<B...>::value;
-
-/*=========================Base classes=======================*/
-
-// integral_constant
-template <typename T, T v>
-struct integral_constant;
-
-// bool_constant
-template <bool B>
-using bool_constant = integral_constant<bool, B>;
-
-using true_type = bool_constant<true>;
-using false_type = bool_constant<false>;
+template <typename B>
+inline constexpr bool negation_v = negation<B>::value;
 
 /*============================================================
 ======================Type modifications======================
@@ -671,23 +657,6 @@ using type_identity_t = typename type_identity<T>::type;
 
 /*===================Primary type categories==================*/
 
-// integral_constant
-template <typename T, T v>
-struct integral_constant {
-  static constexpr T value = v;
-  using value_type = T;
-  using type = integral_constant;  // injected class name
-
-  constexpr operator value_type() const noexcept { return v; }
-  constexpr value_type operator()() const noexcept { return v; }
-};
-
-// is_same
-template <typename T, typename U>
-struct is_same : false_type {};
-template <typename T>
-struct is_same<T, T> : true_type {};
-
 // is_void
 template <typename T>
 struct is_void : is_same<void, remove_cv_t<T>> {};
@@ -763,12 +732,12 @@ struct is_member_object_pointer
 
 // is_member_function_pointer
 template <typename T>
-struct is_member_function_pointer_helper : false_type {};
+struct is_member_function_pointer_impl : false_type {};
 template <typename T, typename U>
-struct is_member_function_pointer_helper<T U::*> : is_function<T> {};
+struct is_member_function_pointer_impl<T U::*> : is_function<T> {};
 template <typename T>
 struct is_member_function_pointer
-    : is_member_function_pointer_helper<remove_cv_t<T>> {};
+    : is_member_function_pointer_impl<remove_cv_t<T>> {};
 
 /*==================Composite type categories=================*/
 
@@ -804,11 +773,11 @@ struct is_reference
 
 // is_member_pointer
 template <typename T>
-struct is_member_pointer_helper : false_type {};
+struct is_member_pointer_impl : false_type {};
 template <typename T, typename U>
-struct is_member_pointer_helper<T U::*> : true_type {};
+struct is_member_pointer_impl<T U::*> : true_type {};
 template <typename T>
-struct is_member_pointer : is_member_pointer_helper<remove_cv_t<T>> {};
+struct is_member_pointer : is_member_pointer_impl<remove_cv_t<T>> {};
 
 /*=======================Type properties======================*/
 
@@ -881,7 +850,7 @@ struct is_unsigned_impl : bool_constant<T(0) < T(-1)> {};
 template <typename T>
 struct is_unsigned_impl<T, false> : false_type {};
 template <typename T>
-struct is_unsigned : is_signed_impl<T>::type {};
+struct is_unsigned : is_unsigned_impl<T>::type {};
 
 // is_bounded_array
 template <typename T>
@@ -966,7 +935,7 @@ struct is_assignable_helper {
   template <typename T, typename U,
             typename = decltype(std::declval<T>() = std::declval<U>())>
   static true_type test(int);
-  template <typename, typename...>
+  template <typename, typename>
   static false_type test(...);
 };
 
@@ -1091,6 +1060,121 @@ template <typename T, std::size_t I>
 struct extent<T[I], 0> : std::integral_constant<std::size_t, I> {};
 template <typename T, std::size_t I, unsigned N>
 struct extent<T[I], N> : std::extent<T, N - 1> {};
+
+/*======================Type relationships====================*/
+
+// is_same
+template <typename T, typename U>
+struct is_same : false_type {};
+template <typename T>
+struct is_same<T, T> : true_type {};
+
+// is_base_of
+struct is_base_of_helper {
+  template <typename B>
+  static true_type test_ptr_conv(const volatile B*);
+  template <typename>
+  static false_type test_ptr_conv(const volatile void*);
+
+  template <typename B, typename D>
+  static auto test_is_base_of(int)
+      -> decltype(test_ptr_conv<B>(static_cast<D*>(nullptr)));
+  template <typename, typename>
+  static auto test_is_base_of(...) -> true_type;  // private or ambiguous base
+
+  template <typename B, typename D>
+  static constexpr bool test_is_base_of_v =
+      decltype(test_is_base_of<B, D>(0))::value;
+};
+
+template <typename Base, typename Derived>
+struct is_base_of
+    : bool_constant<is_class_v<Base> && is_class_v<Derived> &&
+                    is_base_of_helper::test_is_base_of_v<Base, Derived>> {};
+
+// is_convertible
+
+// conversion to function or array type is now allowed
+// conversion from void to void is allowed
+template <typename From, typename To,
+          bool = is_void_v<To> || is_array_v<To> || is_function_v<To>>
+struct is_convertible_helper {
+  using type = bool_constant<is_void_v<From> && is_void_v<To>>;
+};
+
+template <typename From, typename To>
+struct is_convertible_helper<From, To, false> {
+  static void aux(To);
+
+  template <typename F, typename = decltype(aux(std::declval<F>()))>
+  static true_type test(int);
+  template <typename>
+  static false_type test(...);
+
+  using type = decltype(test<From>(0));
+};
+
+template <typename From, typename To>
+struct is_convertible : is_convertible_helper<From, To>::type {};
+
+// is_invocable
+
+// not a type
+struct nat {
+  nat() = delete;
+  nat(const nat&) = delete;
+  nat& operator=(const nat&) = delete;
+  nat(nat&&) = delete;
+  nat& operator=(nat&&) = delete;
+  ~nat() = delete;
+};
+
+template <typename R, typename Fn, typename... ArgTypes>
+struct is_invocable_helper {
+  template <typename F, typename... Args>
+  static auto try_call(int)
+      -> decltype(std::invoke(std::declval<F>(), std::declval<Args>()...));
+  template <typename F, typename... Args>
+  static nat try_call(...);
+
+  using result = decltype(try_call<Fn, ArgTypes...>(0));
+
+  using type = conditional_t<
+      !is_same_v<nat, result>,
+      conditional_t<is_void_v<R>, true_type, is_convertible<result, R>>,
+      false_type>;
+};
+
+template <typename Fn, typename... ArgTypes>
+struct is_invocable : is_invocable_helper<void, Fn, ArgTypes...>::type {};
+
+// is_invocable_r
+template <typename R, typename Fn, typename... ArgTypes>
+struct is_invocable_r : is_invocable_helper<R, Fn, ArgTypes...>::type {};
+
+/*=====================Operations on traits===================*/
+
+// conjunction
+template <typename...>
+struct conjunction : true_type {};
+template <typename B1>
+struct conjunction<B1> : B1 {};
+template <typename B1, typename... Bn>
+struct conjunction<B1, Bn...>
+    : conditional_t<bool(B1::value), conjunction<Bn...>, B1> {};
+
+// disjunction
+template <typename...>
+struct disjunction : false_type {};
+template <typename B1>
+struct disjunction<B1> : B1 {};
+template <typename B1, typename... Bn>
+struct disjunction<B1, Bn...>
+    : conditional_t<bool(B1::value), B1, disjunction<Bn...>> {};
+
+// negation
+template <typename B>
+struct negation : bool_constant<!bool(B::value)> {};
 
 /*============================================================
 ======================Type modifications======================
@@ -1263,6 +1347,51 @@ template <class T, class F>
 struct conditional<false, T, F> {
   using type = F;
 };
+
+// common_type
+template <typename...>
+struct common_type {};
+template <typename T>
+struct common_type<T> : common_type<T, T> {};
+
+namespace common_type_impl {
+
+template <typename T1, typename T2>
+using conditional_result_t =
+    decltype(false ? std::declval<T1>() : std::declval<T2>());
+
+// SFINAE Out Partial Specializations approach
+template <typename, typename, typename = void>
+struct decay_conditional_result {};
+template <typename T1, typename T2>
+struct decay_conditional_result<T1, T2, void_t<conditional_result_t<T1, T2>>>
+    : decay<conditional_result_t<T1, T2>> {};
+
+template <typename T1, typename T2, typename = void>
+struct common_type_2_impl {};
+template <typename T1, typename T2>
+struct common_type_2_impl<T1, T2, void_t<conditional_result_t<T1, T2>>>
+    : decay_conditional_result<T1, T2> {};
+
+template <typename AlwaysVoid, typename T1, typename T2, typename... Ts>
+struct common_type_multi_impl {};
+template <typename T1, typename T2, typename... Ts>
+struct common_type_multi_impl<void_t<common_type_t<T1, T2>>, T1, T2, Ts...>
+    : common_type<common_type_t<T1, T2>, Ts...> {};
+
+};  // namespace common_type_impl
+
+// two types
+template <typename T1, typename T2>
+struct common_type<T1, T2>
+    : conditional_t<is_same_v<T1, decay_t<T1>> && is_same_v<T2, decay_t<T2>>,
+                    common_type_impl::common_type_2_impl<T1, T2>,
+                    common_type<decay_t<T1>, decay_t<T2>>> {};
+
+// +3 types
+template <typename T1, typename T2, typename... Ts>
+struct common_type<T1, T2, Ts...>
+    : common_type_impl::common_type_multi_impl<void, T1, T2, Ts...> {};
 
 // type_identity
 template <typename T>
