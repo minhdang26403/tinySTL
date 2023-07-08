@@ -3,25 +3,25 @@
 
 CC = gcc
 CPP = g++
-CFLAGS = -Wall -Wno-unused-function -std=c++20
+CFLAGS = -Wall -Wextra -Wno-unused-function -std=c++20
 LIBs = -lm
 TESTDIR = ./test
-INCLUDEDIR = -I./include -I.
+INCLUDEDIR = -I./include
 
 PROGRAMS = type_traits \
 	typelist \
-	unique_ptr \
+	memory \
 
 all: $(PROGRAMS)
 
-type_traits: type_traits.cpp
-	$(CPP) $(CFLAGS) -o $@ $^ $(INCLUDEDIR) $(LIBS)
+type_traits: $(TESTDIR)/type_traits.cpp
+	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
 
-typelist: typelist.cpp
-	$(CPP) $(CFLAGS) -o $@ $^ $(INCLUDEDIR) $(LIBS)
+typelist: $(TESTDIR)/typelist.cpp
+	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
 
-unique_ptr: unique_ptr.cpp
-	$(CPP) $(CFLAGS) -o $@ $^ $(INCLUDEDIR) $(LIBS)
+memory:$(TESTDIR)/memory.cpp
+	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
 
 clean:
 	rm -rf $(PROGRAMS) *.o *.a a.out *.err *~
