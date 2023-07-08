@@ -1,8 +1,15 @@
-#include "unique_ptr.h"
-
 #include <iostream>
+#include "memory.h"
+
 
 using namespace stl;
+
+// default delete
+void TestDefaultDelete() {
+  {
+    std::unique_ptr<int> ptr(new int(5));
+  }  // unique_ptr<int> uses default_delete<int>
+}
 
 // object to manage
 struct Foo {
@@ -75,7 +82,10 @@ void TestGet() {
 }
 
 int main() {
+  TestDefaultDelete();
   TestConstructor();
   TestAccessMethod();
   TestGet();
+
+  return 0;
 }

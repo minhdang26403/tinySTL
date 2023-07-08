@@ -6,7 +6,16 @@
 namespace stl {
 template <typename T>
 struct default_delete {
-  void operator()(T* ptr) { delete ptr; }
+  constexpr default_delete() noexcept = default;
+
+  template <typename U, typename = enable_if_t<is_convertible_v<U*, T*>>>
+  default_delete(const default_delete<U>& d) noexcept;
+
+  void operator()(T* ptr) { 
+    static_assert(sizeof(T) > 0, "default delete cannot delete incomplete type");
+    static_assert(!is_void_v<T>, "default delete cannot delete void type");
+    delete ptr;
+  }
 };
 
 template <typename T>
@@ -110,6 +119,6 @@ class unique_ptr {
 //   void swap(unique_ptr& u) noexcept;
 // };
 
-}  // namespace stl
+};  // namespace stl
 
 #endif
