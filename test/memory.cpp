@@ -1,6 +1,6 @@
-#include <iostream>
 #include "memory.h"
 
+#include <iostream>
 
 using namespace stl;
 
@@ -40,8 +40,7 @@ void TestConstructor() {
   std::cout << "Example constructor(2)...\n";
   {
     unique_ptr<Foo> up2(new Foo);  // up2 now owns a Foo
-  }                                     // Foo deleted
-
+  }                                // Foo deleted
 
   std::cout << "Example constructor(5)...\n";
   {

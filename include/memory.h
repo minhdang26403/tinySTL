@@ -1,5 +1,5 @@
-#ifndef UNIQUE_PTR_
-#define UNIQUE_PTR_
+#ifndef MEMORY_H_
+#define MEMORY_H_
 
 #include "type_traits.h"
 
@@ -121,4 +121,4 @@ class unique_ptr {
 
 };  // namespace stl
 
-#endif
+#endif // MEMORY_H_
