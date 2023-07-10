@@ -11,6 +11,7 @@ INCLUDEDIR = -I./include
 PROGRAMS = type_traits \
 	typelist \
 	memory \
+	tuple \
 
 all: $(PROGRAMS)
 
@@ -21,6 +22,9 @@ typelist: $(TESTDIR)/typelist.cpp
 	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
 
 memory:$(TESTDIR)/memory.cpp
+	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
+
+tuple:$(TESTDIR)/tuple.cpp
 	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
 
 clean:
