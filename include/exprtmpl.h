@@ -158,9 +158,7 @@ class A_Scalar {
   // scalars have zero as size
   constexpr size_t size() const { return 0; }
 
-  void print() const {
-    std::cout << s << '\n';
-  }
+  void print() const { std::cout << s << '\n'; }
 
  private:
   const T& s;
@@ -212,9 +210,7 @@ class Array {
 
   Rep& rep() { return expr_rep; }
 
-  void print() const {
-    expr_rep.print();
-  }
+  void print() const { expr_rep.print(); }
 
  private:
   Rep expr_rep;  // (access to) the data of the array
@@ -241,21 +237,23 @@ auto operator+(const T& s, const Array<T, R2>& b) {
 }
 
 // multiplication of two Arrays
-template<typename T, typename R1, typename R2>
+template <typename T, typename R1, typename R2>
 auto operator*(const Array<T, R1>& a, const Array<T, R2>& b) {
   return Array<T, A_Mult<T, R1, R2>>(A_Mult<T, R1, R2>(a.rep(), b.rep()));
 }
 
 // multiplication of Array and scalar
-template<typename T, typename R1>
+template <typename T, typename R1>
 auto operator*(const Array<T, R1>& a, const T& s) {
-  return Array<T, A_Mult<T, R1, A_Scalar<T>>>(A_Mult<T, R1, A_Scalar<T>>(a.rep(), s));
+  return Array<T, A_Mult<T, R1, A_Scalar<T>>>(
+      A_Mult<T, R1, A_Scalar<T>>(a.rep(), s));
 }
 
 // multiplication of scalar and Array
-template<typename T, typename R2>
+template <typename T, typename R2>
 auto operator*(const T& s, const Array<T, R2>& b) {
-  return Array<T, A_Mult<T, A_Scalar<T>, R2>>(A_Mult<T, A_Scalar<T>, R2>(s, b.rep()));
+  return Array<T, A_Mult<T, A_Scalar<T>, R2>>(
+      A_Mult<T, A_Scalar<T>, R2>(s, b.rep()));
 }
 
 };  // namespace stl
