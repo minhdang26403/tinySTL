@@ -7,6 +7,7 @@ namespace stl {
 
 using nullptr_t = decltype(nullptr);
 using size_t = decltype(sizeof(unsigned int));
+using ptrdiff_t = decltype(sizeof(long long));
 
 /*============================================================
 ==========================Declaration=========================
