@@ -12,6 +12,8 @@ PROGRAMS = type_traits \
 	typelist \
 	memory \
 	tuple \
+	exprtmpl \
+	array \
 
 all: $(PROGRAMS)
 
@@ -25,6 +27,12 @@ memory:$(TESTDIR)/memory.cpp
 	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
 
 tuple:$(TESTDIR)/tuple.cpp
+	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
+
+exprtmpl:$(TESTDIR)/exprtmpl.cpp
+	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
+
+array:$(TESTDIR)/array.cpp
 	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
 
 clean:
