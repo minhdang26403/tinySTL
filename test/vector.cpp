@@ -169,7 +169,7 @@ void TestEmpty() {
 
 void TestSize() {
   cout << "==========TEST SIZE FUNCTION==========\n";
-  stl::vector<int> nums {1, 3, 5, 7};
+  stl::vector<int> nums{1, 3, 5, 7};
   assert(nums.size() == 4);
   cout << "PASS\n";
 }
@@ -211,6 +211,159 @@ void TestInsert() {
   cout << "6: " << c1;
 }
 
+struct A {
+  std::string s;
+  A() = default;
+
+  A(std::string str) : s(std::move(str)) { cout << " constructed\n"; }
+
+  A(const A& o) : s(o.s) { cout << " copy constructed\n"; }
+
+  A(A&& o) : s(std::move(o.s)) { cout << " move constructed\n"; }
+
+  A& operator=(const A& other) {
+    s = other.s;
+    cout << " copy assigned\n";
+    return *this;
+  }
+
+  A& operator=(A&& other) {
+    s = std::move(other.s);
+    cout << " move assigned\n";
+    return *this;
+  }
+};
+
+void TestEmplace() {
+  cout << "==========TEST EMPLACE FUNCTION==========\n";
+  stl::vector<A> container;
+  // reserve enough place so vector does not have to resize
+  container.reserve(10);
+  cout << "construct 2 times A:\n";
+  A two{"two"};
+  A three{"three"};
+  assert(container.capacity() == 10);
+
+  cout << "emplace:\n";
+  container.emplace(container.end(), "one");
+
+  cout << "emplace with A&:\n";
+  container.emplace(container.end(), two);
+
+  cout << "emplace with A&&:\n";
+  container.emplace(container.end(), std::move(three));
+
+  cout << "content:\n";
+  for (const auto& obj : container) {
+    cout << ' ' << obj.s;
+  }
+  cout << '\n';
+}
+
+void TestErase() {
+  cout << "==========TEST ERASE FUNCTION==========\n";
+  stl::vector<int> c{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  cout << c;
+
+  c.erase(c.begin());
+  cout << c;
+
+  // Erase all even numbers
+  for (auto it = c.begin(); it != c.end();) {
+    if (*it % 2 == 0)
+      it = c.erase(it);
+    else
+      ++it;
+  }
+  cout << c;
+}
+
+void TestPushBack() {
+  cout << "==========TEST PUSH BACK FUNCTION==========\n";
+  stl::vector<std::string> letters;
+  letters.push_back("abc");
+  std::string s{"def"};
+  letters.push_back(std::move(s));
+  cout << letters;
+  assert(s == "");
+}
+
+struct President {
+  std::string name;
+  std::string country;
+  int year;
+
+  President() = default;
+
+  President(std::string p_name, std::string p_country, int p_year)
+      : name(std::move(p_name)), country(std::move(p_country)), year(p_year) {
+    cout << "I am being constructed.\n";
+  }
+
+  President(President&& other)
+      : name(std::move(other.name)),
+        country(std::move(other.country)),
+        year(other.year) {
+    cout << "I am being moved.\n";
+  }
+
+  President& operator=(const President& other) = default;
+};
+
+void TestEmplaceBack() {
+  cout << "==========TEST EMPLACE BACK FUNCTION==========\n";
+  stl::vector<President> elections;
+  cout << "emplace_back:\n";
+  auto& ref = elections.emplace_back("Nelson Mandela", "South Africa", 1994);
+  assert(ref.year == 1994 && "uses a reference to the created object (C++17)");
+  assert(ref.country == "South Africa");
+  assert(ref.name == "Nelson Mandela");
+
+  stl::vector<President> reElections;
+  cout << "\npush_back:\n";
+  reElections.push_back(
+      President("Franklin Delano Roosevelt", "the USA", 1936));
+
+  cout << "\nContents:\n";
+  for (President const& president : elections)
+    cout << president.name << " was elected president of " << president.country
+         << " in " << president.year << ".\n";
+
+  for (President const& president : reElections)
+    cout << president.name << " was re-elected president of "
+         << president.country << " in " << president.year << ".\n";
+}
+
+void TestPopBack() {
+  stl::vector<int> numbers;
+  numbers.push_back(5);
+  numbers.push_back(3);
+  numbers.push_back(4);
+
+  cout << numbers;
+  numbers.pop_back();
+  cout << numbers;
+}
+
+void print(auto rem, const stl::vector<int>& c) {
+  for (cout << rem; const int el : c) cout << el << ' ';
+  cout << '\n';
+}
+
+void TestResize() {
+  stl::vector<int> c = {1, 2, 3};
+  print("The vector holds: ", c);
+
+  c.resize(5);
+  print("After resize up to 5: ", c);
+
+  c.resize(2);
+  print("After resize down to 2: ", c);
+
+  c.resize(6, 4);
+  print("After resize up to 6 (initializer = 4): ", c);
+}
+
 int main() {
   TestConstructor();
   TestAssignment();
@@ -223,8 +376,14 @@ int main() {
   TestIterators();
   TestEmpty();
   TestSize();
-  TestClear();
-  TestInsert();
+  // TestClear();
+  // TestInsert();
+  // TestEmplace();
+  // TestErase();
+  // TestPushBack();
+  // TestEmplaceBack();
+  // TestPopBack();
+  // TestResize();
 
   return 0;
 }
