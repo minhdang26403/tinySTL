@@ -2,6 +2,7 @@
 #define VECTOR_H_
 
 #include <iostream>
+#include <memory>
 
 #include "type_traits.h"
 
@@ -11,24 +12,29 @@
 
 namespace stl {
 
-template <typename T>
+template <typename T, typename Allocator = std::allocator<T>>
 class vector {
  public:
   /*==========Member types==========*/
   using value_type = T;
+  using allocator = Allocator;
   using size_type = size_t;
   using difference_type = ptrdiff_t;
   using reference = value_type&;
   using const_reference = const value_type&;
-  using pointer = value_type*;
-  using const_pointer = const value_type*;
+  using pointer = typename std::allocator_traits<Allocator>::pointer;
+  using const_pointer =
+      typename std::allocator_traits<Allocator>::const_pointer;
   using iterator = pointer;
   using const_iterator = const_pointer;
 
   /*==========Member functions==========*/
 
   // default constructor
-  vector() : data_(new T[INITIAL_CAPACITY]), capacity_(INITIAL_CAPACITY) {}
+  vector()
+      : data_(std::allocator_traits<Allocator>::allocate(allocator_,
+                                                         INITIAL_CAPACITY)),
+        capacity_(INITIAL_CAPACITY) {}
 
   // custom constructor
   vector(size_type count, const T& value) { assign(count, value); }
@@ -43,7 +49,8 @@ class vector {
 
   // copy constructor
   vector(const vector& other)
-      : data_(new T[other.capacity_]),
+      : data_(std::allocator_traits<Allocator>::allocate(allocator_,
+                                                         other.capacity_)),
         size_(other.size_),
         capacity_(other.capacity_) {
     copy_data(data_, other.data_, size_);
@@ -56,7 +63,9 @@ class vector {
   vector(std::initializer_list<value_type> init) { assign(init); }
 
   // destructor (noexcept by default)
-  ~vector() { delete[] data_; }
+  ~vector() {
+    std::allocator_traits<Allocator>::deallocate(allocator_, data_, capacity_);
+  }
 
   // copy assignment operator
   vector& operator=(const vector& other) {
@@ -173,81 +182,53 @@ class vector {
 
   // insert
   iterator insert(const_iterator pos, const T& value) {
-    return insert(pos, 1, value);
+    return insert_impl(pos, 1, [&](size_type idx) { data_[idx] = value; });
   }
 
   iterator insert(const_iterator pos, T&& value) {
-    size_type idx = pos - begin();
-    prep_for_insertion(idx, 1);
-    data_[idx] = std::move(value);
-    size_++;
-
-    return static_cast<iterator>(data_ + idx);
+    return insert_impl(pos, 1,
+                       [&](size_type idx) { data_[idx] = std::move(value); });
   }
 
   iterator insert(const_iterator pos, size_type count, const T& value) {
+    return insert_impl(pos, count, [&](size_type idx) {
+      for (size_type i = 0; i < count; i++) {
+        data_[idx + i] = value;
+      }
+    });
+  }
+
+  template <typename InputIt, typename = enable_if_t<is_pointer_v<InputIt>>>
+  iterator insert(const_iterator pos, InputIt first, InputIt last) {
+    return insert_impl(pos, last - first, [&](size_type idx) {
+      for (auto it = first; it != last; it++) {
+        data_[idx++] = *it;
+      }
+    });
+  }
+
+  iterator insert(const_iterator pos, std::initializer_list<T> ilist) {
+    return insert_impl(pos, ilist.size(), [&](size_type idx) {
+      for (const auto& ele : ilist) {
+        data_[idx++] = ele;
+      }
+    });
+  }
+
+  template <typename InsertFunc>
+  iterator insert_impl(const_iterator pos, size_type count,
+                       InsertFunc&& insert_func) {
     // must calculate idx first; otherwise, `pos` iterator
     // may be invalidated due to reallocation
     size_type idx = pos - begin();
     if (count == 0) {
       return static_cast<iterator>(data_ + idx);
     }
-
+    // prep_for_insertion can invalidate iterator
     prep_for_insertion(idx, count);
-    for (size_type i = 0; i < count; i++) {
-      data_[idx + i] = value;
-    }
+    insert_func(idx);
     size_ += count;
-
     return static_cast<iterator>(data_ + idx);
-  }
-
-  template <typename InputIt, typename = enable_if_t<is_pointer_v<InputIt>>>
-  iterator insert(const_iterator pos, InputIt first, InputIt last) {
-    size_type idx = pos - begin();
-    if (first == last) {
-      return static_cast<iterator>(data_ + idx);
-    }
-
-    size_type count = last - first;
-    prep_for_insertion(idx, count);
-    size_type i = idx;
-    for (auto it = first; it != last; it++) {
-      data_[i++] = *it;
-    }
-    size_ += count;
-
-    return static_cast<iterator>(data_ + idx);
-  }
-
-  iterator insert(const_iterator pos, std::initializer_list<T> ilist) {
-    size_type idx = pos - begin();
-    size_type count = ilist.size();
-    if (count == 0) {
-      return static_cast<iterator>(data_ + idx);
-    }
-
-    prep_for_insertion(idx, count);
-    size_type i = idx;
-    for (const auto& ele : ilist) {
-      data_[i++] = ele;
-    }
-    size_ += count;
-
-    return static_cast<iterator>(data_ + idx);
-  }
-
-  template<typename InsertFunc>
-  iterator insert_impl(const_iterator pos, size_type count, InsertFunc&& insert_func) {
-    size_type idx = pos - begin();
-    iterator return_iter = data_ + idx;
-    if (count == 0) {
-      return return_iter;
-    }
-    prep_for_insertion(idx, count);
-    insert_func();
-    size_ += count;
-    return return_iter;
   }
 
   template <typename... Args>
@@ -255,20 +236,19 @@ class vector {
     size_type idx = pos - begin();
     prep_for_insertion(idx, 1);
     iterator iter = &data_[idx];
-    *iter = T(std::forward<Args>(args)...);
+    std::allocator_traits<Allocator>::construct(allocator_, iter,
+                                                std::forward<Args>(args)...);
     size_++;
-
     return iter;
   }
 
-  iterator erase(const_iterator pos) {
+  enable_if_t<is_move_assignable_v<T> ,iterator> erase(const_iterator pos) {
+    size_--;
     if (pos == end()) {
-      size_--;
       return end();
     }
 
     size_type idx = pos - begin();
-    size_--;
     for (size_type i = idx; i < size_; i++) {
       data_[i] = data_[i + 1];
     }
@@ -318,7 +298,7 @@ class vector {
 
   void realloc(size_type sz) {
     T* new_data = new T[sz];
-    delete data_;
+    delete [] data_;
     data_ = new_data;
     capacity_ = sz;
   }
@@ -342,7 +322,7 @@ class vector {
     } else {
       copy_data(new_data, data_, size_);
     }
-    delete data_;
+    delete [] data_;
     data_ = new_data;
     capacity_ = new_cap;
   }
@@ -363,6 +343,7 @@ class vector {
   T* data_{};
   size_t size_{};
   size_t capacity_{};
+  Allocator allocator_{};
 };
 
 };  // namespace stl
