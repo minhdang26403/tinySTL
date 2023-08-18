@@ -42,6 +42,7 @@ class vector {
   // custom constructor
   explicit vector(size_type count) { assign(count, T()); }
 
+  // need `enable_if_t` for overload resolution
   template <typename InputIt, typename = enable_if_t<is_pointer_v<InputIt>>>
   vector(InputIt first, InputIt last) {
     assign(first, last);
@@ -50,10 +51,10 @@ class vector {
   // copy constructor
   vector(const vector& other)
       : data_(std::allocator_traits<Allocator>::allocate(allocator_,
-                                                         other.capacity_)),
-        size_(other.size_),
-        capacity_(other.capacity_) {
-    copy_data(data_, other.data_, size_);
+                                                         other.capacity())),
+        size_(other.size()),
+        capacity_(other.capacity()) {
+    copy_data(data(), other.data(), size());
   }
 
   // move constructor
@@ -64,7 +65,7 @@ class vector {
 
   // destructor (noexcept by default)
   ~vector() {
-    std::allocator_traits<Allocator>::deallocate(allocator_, data_, capacity_);
+    std::allocator_traits<Allocator>::deallocate(allocator_, data(), capacity());
   }
 
   // copy assignment operator
@@ -88,17 +89,16 @@ class vector {
 
   // assign
   void assign(size_type count, const T& value) {
-    assign_impl(count, [&]() {
-      for (size_type i = 0; i < count; i++) {
-        data_[i] = value;
+    assign_impl(count, [&](size_type i) {
+      while (i < count) {
+        data_[i++] = value;
       }
     });
   }
 
   template <typename InputIt>
   void assign(InputIt first, InputIt last) {
-    assign_impl(last - first, [&]() {
-      int i = 0;
+    assign_impl(last - first, [&](size_type i) {
       for (auto it = first; it != last; it++) {
         data_[i++] = *it;
       }
@@ -106,21 +106,15 @@ class vector {
   }
 
   void assign(std::initializer_list<T> ilist) {
-    assign_impl(ilist.size(), [&]() {
-      int i = 0;
+    assign_impl(ilist.size(), [&](size_type i) {
       for (const auto& ele : ilist) {
         data_[i++] = ele;
       }
     });
   }
 
-  template <typename AssignFunc>
-  void assign_impl(size_type count, AssignFunc&& assign_func) {
-    if (capacity_ < count) {
-      realloc(count);
-    }
-    assign_func();
-    size_ = count;
+  constexpr allocator_type get_allocator() const noexcept {
+    return allocator_;
   }
 
   // Element access
@@ -250,7 +244,7 @@ class vector {
 
     size_type idx = pos - begin();
     for (size_type i = idx; i < size_; i++) {
-      data_[i] = data_[i + 1];
+      data_[i] = std::move(data_[i + 1]);
     }
     return static_cast<iterator>(data_ + idx);
   }
@@ -297,8 +291,8 @@ class vector {
   }
 
   void realloc(size_type sz) {
-    T* new_data = new T[sz];
-    delete [] data_;
+    T* new_data = std::allocator_traits<Allocator>::allocate(allocator_, sz);
+    std::allocator_traits<Allocator>::deallocate(allocator_, data_, capacity_);
     data_ = new_data;
     capacity_ = sz;
   }
@@ -316,13 +310,13 @@ class vector {
   }
 
   void expand_capacity(size_type new_cap) {
-    T* new_data = new T[new_cap];
+    T* new_data = std::allocator_traits<Allocator>::allocate(allocator_, new_cap);
     if constexpr (is_nothrow_move_assignable_v<T>) {
       move_data(new_data, data_, size_);
     } else {
       copy_data(new_data, data_, size_);
     }
-    delete [] data_;
+    std::allocator_traits<Allocator>::deallocate(allocator_, data_, capacity_);
     data_ = new_data;
     capacity_ = new_cap;
   }
@@ -336,6 +330,15 @@ class vector {
     for (size_type i = size_ + count - 1; i > idx + count - 1; i--) {
       data_[i] = data_[i - count];
     }
+  }
+
+  template <typename AssignFunc>
+  void assign_impl(size_type count, AssignFunc&& assign_func) {
+    if (capacity_ < count) {
+      realloc(count);
+    }
+    assign_func(0);
+    size_ = count;
   }
 
   static constexpr size_t INITIAL_CAPACITY = 4;
