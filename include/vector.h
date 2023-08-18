@@ -28,7 +28,7 @@ class vector {
   /*==========Member functions==========*/
 
   // default constructor
-  vector() : data_(new T[INITIAL_CAPACITY]) {}
+  vector() : data_(new T[INITIAL_CAPACITY]), capacity_(INITIAL_CAPACITY) {}
 
   // custom constructor
   vector(size_type count, const T& value) { assign(count, value); }
@@ -79,40 +79,39 @@ class vector {
 
   // assign
   void assign(size_type count, const T& value) {
-    if (capacity_ < count) {
-      realloc(count);
-    }
-
-    for (size_type i = 0; i < count; i++) {
-      data_[i] = value;
-    }
-    size_ = count;
+    assign_impl(count, [&]() {
+      for (size_type i = 0; i < count; i++) {
+        data_[i] = value;
+      }
+    });
   }
 
   template <typename InputIt>
   void assign(InputIt first, InputIt last) {
-    size_type sz = last - first;
-    if (capacity_ < sz) {
-      realloc(sz);
-    }
-    int i = 0;
-    for (auto it = first; it != last; it++) {
-      data_[i++] = *it;
-    }
-    size_ = sz;
+    assign_impl(last - first, [&]() {
+      int i = 0;
+      for (auto it = first; it != last; it++) {
+        data_[i++] = *it;
+      }
+    });
   }
 
   void assign(std::initializer_list<T> ilist) {
-    auto ilist_sz = ilist.size();
-    if (capacity_ < ilist_sz) {
-      realloc(ilist_sz);
-    }
+    assign_impl(ilist.size(), [&]() {
+      int i = 0;
+      for (const auto& ele : ilist) {
+        data_[i++] = ele;
+      }
+    });
+  }
 
-    int i = 0;
-    for (const auto& ele : ilist) {
-      data_[i++] = ele;
+  template <typename AssignFunc>
+  void assign_impl(size_type count, AssignFunc&& assign_func) {
+    if (capacity_ < count) {
+      realloc(count);
     }
-    size_ = ilist_sz;
+    assign_func();
+    size_ = count;
   }
 
   // Element access
@@ -227,7 +226,7 @@ class vector {
     if (count == 0) {
       return static_cast<iterator>(data_ + idx);
     }
-    
+
     prep_for_insertion(idx, count);
     size_type i = idx;
     for (const auto& ele : ilist) {
@@ -236,6 +235,77 @@ class vector {
     size_ += count;
 
     return static_cast<iterator>(data_ + idx);
+  }
+
+  template<typename InsertFunc>
+  iterator insert_impl(const_iterator pos, size_type count, InsertFunc&& insert_func) {
+    size_type idx = pos - begin();
+    iterator return_iter = data_ + idx;
+    if (count == 0) {
+      return return_iter;
+    }
+    prep_for_insertion(idx, count);
+    insert_func();
+    size_ += count;
+    return return_iter;
+  }
+
+  template <typename... Args>
+  iterator emplace(const_iterator pos, Args&&... args) {
+    size_type idx = pos - begin();
+    prep_for_insertion(idx, 1);
+    iterator iter = &data_[idx];
+    *iter = T(std::forward<Args>(args)...);
+    size_++;
+
+    return iter;
+  }
+
+  iterator erase(const_iterator pos) {
+    if (pos == end()) {
+      size_--;
+      return end();
+    }
+
+    size_type idx = pos - begin();
+    size_--;
+    for (size_type i = idx; i < size_; i++) {
+      data_[i] = data_[i + 1];
+    }
+    return static_cast<iterator>(data_ + idx);
+  }
+
+  void push_back(const T& value) { insert(end(), value); }
+
+  void push_back(T&& value) { insert(end(), std::move(value)); }
+
+  template <typename... Args>
+  reference emplace_back(Args&&... args) {
+    auto it = emplace(end(), std::forward<Args>(args)...);
+    return data_[it - begin()];
+  }
+
+  void pop_back() { size_--; }
+
+  void resize(size_type count) { resize_impl(count, value_type()); }
+
+  void resize(size_type count, const value_type& value) {
+    resize_impl(count, value);
+  }
+
+  void resize_impl(size_type count, const value_type& value) {
+    if (size() >= count) {
+      size_ = count;
+      return;
+    }
+
+    if (count > capacity_) {
+      expand_capacity(std::max(count, capacity_ * 2));
+    }
+    for (size_type i = 0; i < count - size_; i++) {
+      data_[size_ + i] = value;
+    }
+    size_ = count;
   }
 
  private:
@@ -288,7 +358,7 @@ class vector {
     }
   }
 
-  static constexpr int INITIAL_CAPACITY = 4;
+  static constexpr size_t INITIAL_CAPACITY = 4;
 
   T* data_{};
   size_t size_{};
