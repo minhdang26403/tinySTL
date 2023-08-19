@@ -391,6 +391,12 @@ void TestEmplaceBack() {
   for (President const& president : reElections)
     cout << president.name << " was re-elected president of "
          << president.country << " in " << president.year << ".\n";
+
+  // Test ADL
+  stl::vector<std::string> data;
+  std::string s = "abc";
+  data.emplace_back(s);
+  
   cout << "PASS\n";
 }
 
