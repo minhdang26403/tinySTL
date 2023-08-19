@@ -1,11 +1,12 @@
 #ifndef VECTOR_H_
 #define VECTOR_H_
 
-#include <iostream>
+#include <algorithm>
 #include <memory>
 #include <stdexcept>
 
 #include "type_traits.h"
+#include "utility.h"
 
 /*============================================================
 =============================Vector===========================
@@ -337,7 +338,7 @@ class vector {
 
   iterator insert(const_iterator pos, T&& value) {
     return insert_impl(pos, 1,
-                       [&](size_type idx) { data_[idx] = std::move(value); });
+                       [&](size_type idx) { data_[idx] = stl::move(value); });
   }
 
   /**
@@ -398,7 +399,7 @@ class vector {
     prep_for_insertion(idx, 1);
     iterator iter = &data_[idx];
     std::allocator_traits<Allocator>::construct(get_allocator(), iter,
-                                                std::forward<Args>(args)...);
+                                                forward<Args>(args)...);
     size_++;
     return iter;
   }
@@ -416,7 +417,7 @@ class vector {
 
     size_type idx = pos - begin();
     for (size_type i = idx; i < size(); i++) {
-      data_[i] = std::move(data_[i + 1]);
+      data_[i] = stl::move(data_[i + 1]);
     }
     return static_cast<iterator>(data_ + idx);
   }
@@ -435,7 +436,7 @@ class vector {
    * reallocation takes place
    * @param value value of the element to append
    */
-  void push_back(T&& value) { insert(end(), std::move(value)); }
+  void push_back(T&& value) { insert(end(), stl::move(value)); }
 
   /**
    * Appends a new element to the end of the container using in-place
@@ -446,7 +447,7 @@ class vector {
    */
   template <typename... Args>
   reference emplace_back(Args&&... args) {
-    auto it = emplace(end(), std::forward<Args>(args)...);
+    auto it = emplace(end(), forward<Args>(args)...);
     return data_[it - begin()];
   }
 
@@ -484,7 +485,7 @@ class vector {
 
   void move_data(T* dst, T* src, size_type sz) {
     for (size_type i = 0; i < sz; i++) {
-      dst[i] = std::move(src[i]);
+      dst[i] = stl::move(src[i]);
     }
   }
 
