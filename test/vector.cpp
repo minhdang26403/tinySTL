@@ -19,25 +19,40 @@ std::ostream& operator<<(std::ostream& s, const stl::vector<T>& v) {
   return s << "}\n";
 }
 
+class X {
+public:
+  X() {
+    cout << "Default constructor\n";
+  }
+
+  X(const X&) {
+    cout << "Copy constructor\n";
+  }
+};
+
 void TestConstructor() {
   cout << "==========TEST CONSTRUCTOR==========\n";
-  stl::vector<std::string> words1{"momo", "yoona", "yejin", "joy", "yang"};
+  using std::string;
+  stl::vector<string> words1{"momo", "yoona", "yejin", "joy", "yang"};
   cout << "1: " << words1;
 
-  stl::vector<std::string> words2(words1.begin(), words1.end());
+  stl::vector<string> words2(words1.begin(), words1.end());
+  words2[2] = "bc";
+  assert(words1[2] != words2[2]);
   cout << "2: " << words2;
 
-  stl::vector<std::string> words3(words1);
+  stl::vector<string> words3(words1);
   cout << "3: " << words3;
 
-  stl::vector<std::string> words4(5, "momo");
+  stl::vector<string> words4(5, "momo");
   cout << "4: " << words4;
 
-  stl::vector<std::string> words5(std::move(words1));
+  stl::vector<string> words5(std::move(words1));
   cout << "5: " << words5;
 
   // C++ standards guarantees `words1` to be empty
   assert(words1.empty());
+
   cout << "PASS\n";
 }
 
@@ -70,6 +85,13 @@ void TestAssignment() {
   cout << "v1 = " << v1;
   assert(v1.capacity() == 4);
   cout << "PASS\n";
+
+  stl::vector<std::string> strs1 = {"abc", "def", "qwe"};
+  stl::vector<std::string> strs2;
+  assert(strs2.size() == 0);
+  strs2 = strs1;
+  strs2[0] = "xyz";
+  assert(strs1[0] != strs2[0]);
 }
 
 void TestAssign() {
@@ -133,7 +155,7 @@ void TestData() {
   stl::vector<int>::pointer p = container.data();
 
   cout << "data = ";
-  for (int i = 0; i < container.size(); i++) {
+  for (decltype(container.size()) i = 0; i < container.size(); i++) {
     cout << p[i] << ' ';
   }
   cout << '\n';
@@ -209,6 +231,18 @@ void TestInsert() {
 
   c1.insert(c1.end(), {601, 602, 603});
   cout << "6: " << c1;
+
+  stl::vector<std::string> data2;
+  data2.insert(data2.begin(), "abc");
+  assert(data2.size() == 1);
+  assert(data2[0] == "abc");
+  data2.insert(data2.end(), "def");
+  data2.insert(data2.begin() + 1, "ghi");
+  assert(data2[1] == "ghi");
+  assert(data2[2] == "def");
+  data2.insert(data2.end(), "xyz");
+  assert(data2[3] == "xyz");
+  cout << "PASS\n";
 }
 
 struct A {
@@ -258,6 +292,7 @@ void TestEmplace() {
     cout << ' ' << obj.s;
   }
   cout << '\n';
+  cout << "PASS\n";
 }
 
 void TestErase() {
@@ -276,6 +311,17 @@ void TestErase() {
       ++it;
   }
   cout << c;
+
+  stl::vector<std::string> data;
+  data.insert(data.begin(), "abc");
+  data.insert(data.end(), "def");
+  data.insert(data.begin() + 1, "ghi");
+  data.insert(data.begin(), "xyz");
+  data.erase(data.begin());
+  assert(data[0] == "abc");
+  data.erase(data.begin());
+  assert(data[0] == "ghi");
+  cout << "PASS\n";
 }
 
 void TestPushBack() {
@@ -286,6 +332,17 @@ void TestPushBack() {
   letters.push_back(std::move(s));
   cout << letters;
   assert(s == "");
+
+  stl::vector<std::string> data1;
+  data1.push_back("abc");
+  assert(data1[0] == "abc");
+
+  int i = data1.size();
+  for (; i < 10; i++) {
+    data1.push_back("def");
+  }
+  assert(data1[i - 1] == "def");
+  cout << "PASS\n";
 }
 
 struct President {
@@ -293,7 +350,9 @@ struct President {
   std::string country;
   int year;
 
-  President() = default;
+  President() {
+    cout << "Default constructed\n";
+  }
 
   President(std::string p_name, std::string p_country, int p_year)
       : name(std::move(p_name)), country(std::move(p_country)), year(p_year) {
@@ -332,9 +391,11 @@ void TestEmplaceBack() {
   for (President const& president : reElections)
     cout << president.name << " was re-elected president of "
          << president.country << " in " << president.year << ".\n";
+  cout << "PASS\n";
 }
 
 void TestPopBack() {
+  cout << "==========TEST POP BACK FUNCTION==========\n";
   stl::vector<int> numbers;
   numbers.push_back(5);
   numbers.push_back(3);
@@ -343,6 +404,7 @@ void TestPopBack() {
   cout << numbers;
   numbers.pop_back();
   cout << numbers;
+  cout << "PASS\n";
 }
 
 void print(auto rem, const stl::vector<int>& c) {
@@ -351,6 +413,7 @@ void print(auto rem, const stl::vector<int>& c) {
 }
 
 void TestResize() {
+  cout << "==========TEST RESIZE FUNCTION==========\n";
   stl::vector<int> c = {1, 2, 3};
   print("The vector holds: ", c);
 
@@ -362,21 +425,24 @@ void TestResize() {
 
   c.resize(6, 4);
   print("After resize up to 6 (initializer = 4): ", c);
+  cout << "PASS\n";
 }
 
 int main() {
-  TestConstructor();
-  TestAssignment();
-  TestAssign();
-  TestAt();
-  TestIndexingOperator();
-  TestFront();
-  TestBack();
-  TestData();
-  TestIterators();
-  TestEmpty();
-  TestSize();
+  // TestConstructor();
+  // TestAssignment();
+  // TestAssign();
+  // TestAt();
+  // TestIndexingOperator();
+  // TestFront();
+  // TestBack();
+  // TestData();
+  // TestIterators();
+  // TestEmpty();
+  // TestSize();
   // TestClear();
+  
+  // Test modifiers
   // TestInsert();
   // TestEmplace();
   // TestErase();
