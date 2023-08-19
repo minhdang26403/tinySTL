@@ -79,7 +79,7 @@ class vector {
    * @param last iterator to one place beyond the last element
    */
 
-  template <typename InputIt, typename = enable_if_t<is_pointer_v<InputIt>>>
+  template <typename InputIt, typename = stl::enable_if_t<stl::is_pointer_v<InputIt>>>
   vector(InputIt first, InputIt last, const Allocator& alloc = Allocator())
       : allocator_(alloc) {
     assign(first, last);
@@ -337,8 +337,11 @@ class vector {
   }
 
   iterator insert(const_iterator pos, T&& value) {
-    return insert_impl(pos, 1,
-                       [&](size_type idx) { data_[idx] = stl::move(value); });
+    return insert_impl(pos, 1, [&](size_type idx) {
+      // must use `stl::move` here instead of `move` even though we are in
+      // namespace stl due to argument-dependent lookup (ADL)
+      data_[idx] = stl::move(value);
+    });
   }
 
   /**
@@ -363,7 +366,7 @@ class vector {
    * @param last the element following the last element of the range
    * @return iterator to the first inserted element, or `pos` if `first == last`
    */
-  template <typename InputIt, typename = enable_if_t<is_pointer_v<InputIt>>>
+  template <typename InputIt, typename = stl::enable_if_t<stl::is_pointer_v<InputIt>>>
   iterator insert(const_iterator pos, InputIt first, InputIt last) {
     return insert_impl(pos, last - first, [&](size_type idx) {
       for (auto it = first; it != last; it++) {
@@ -399,7 +402,7 @@ class vector {
     prep_for_insertion(idx, 1);
     iterator iter = &data_[idx];
     std::allocator_traits<Allocator>::construct(get_allocator(), iter,
-                                                forward<Args>(args)...);
+                                                stl::forward<Args>(args)...);
     size_++;
     return iter;
   }
@@ -409,7 +412,7 @@ class vector {
    * @param pos position of the element to remove
    * @return iterator following the last removed element
    */
-  enable_if_t<is_move_assignable_v<T>, iterator> erase(const_iterator pos) {
+  stl::enable_if_t<stl::is_move_assignable_v<T>, iterator> erase(const_iterator pos) {
     size_--;
     if (pos == end()) {
       return end();
@@ -447,7 +450,7 @@ class vector {
    */
   template <typename... Args>
   reference emplace_back(Args&&... args) {
-    auto it = emplace(end(), forward<Args>(args)...);
+    auto it = emplace(end(), stl::forward<Args>(args)...);
     return data_[it - begin()];
   }
 
@@ -501,7 +504,7 @@ class vector {
   void expand_capacity(size_type new_cap) {
     T* new_data =
         std::allocator_traits<Allocator>::allocate(get_allocator(), new_cap);
-    if constexpr (is_nothrow_move_assignable_v<T>) {
+    if constexpr (stl::is_nothrow_move_assignable_v<T>) {
       move_data(new_data, data(), size());
     } else {
       copy_data(new_data, data(), size());
