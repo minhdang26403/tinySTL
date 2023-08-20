@@ -6,24 +6,60 @@
 namespace stl {
 template <typename T>
 struct default_delete {
+  static_assert(!stl::is_function_v<T>,
+                "default_delete cannot be instantiated for function types");
+  /**
+   * Constructs a default delete object
+   */
   constexpr default_delete() noexcept = default;
 
-  template <typename U, typename = enable_if_t<is_convertible_v<U*, T*>>>
-  default_delete(const default_delete<U>& d) noexcept;
+  /**
+   * Copy constructor. This converting constructor makes possible the implicit
+   * conversion from unique_ptr<Derived> to unique_ptr<Base>
+   */
+  template <typename U, typename = stl::enable_if_t<stl::is_convertible_v<U*, T*>>>
+  default_delete(const default_delete<U>&) noexcept {}
 
-  void operator()(T* ptr) { 
-    static_assert(sizeof(T) > 0, "default delete cannot delete incomplete type");
-    static_assert(!is_void_v<T>, "default delete cannot delete void type");
+  /**
+   * Calls `delete` on `ptr`
+   * @param ptr an object to delete
+   */
+  void operator()(T* ptr) const noexcept {
+    static_assert(sizeof(T) > 0,
+                  "default_delete cannot delete incomplete type");
+    static_assert(!stl::is_void_v<T>, "default_delete cannot delete void type");
     delete ptr;
   }
 };
 
 template <typename T>
 struct default_delete<T[]> {
-  void operator()(T* ptr) { delete[] ptr; }
+  /**
+   * Constructs a default delete object
+   */
+  constexpr default_delete() noexcept = default;
+
+  /**
+   * Copy constructor. This converting constructor makes possible the implicit
+   * conversion from unique_ptr<Derived> to unique_ptr<Base>
+   */
+  template <typename U,
+            typename = stl::enable_if_t<stl::is_convertible_v<U (*)[], T (*)[]>>>
+  default_delete(const default_delete<U[]>&) noexcept {}
+
+  /**
+   * Calls `delete` on `ptr`
+   * @param ptr an array to delete
+   */
+  void operator()(T* ptr) const noexcept {
+    static_assert(sizeof(T) > 0,
+                  "default_delete cannot delete incomplete type");
+    static_assert(!stl::is_void_v<T>, "default_delete cannot delete void type");
+    delete[] ptr;
+  }
 };
 
-template <class T, class Deleter = default_delete<T>>
+template <typename T, typename Deleter = default_delete<T>>
 class unique_ptr {
  public:
   using pointer = T*;
@@ -35,7 +71,7 @@ class unique_ptr {
 
   explicit unique_ptr(pointer p) noexcept : ptr_(p){};
 
-  unique_ptr(unique_ptr&& u) noexcept : ptr_(u.ptr_) { ptr_ = nullptr; };
+  unique_ptr(unique_ptr&& u) noexcept : ptr_(u.release()){};
 
   unique_ptr(nullptr_t) noexcept : unique_ptr(){};
 
@@ -84,41 +120,53 @@ class unique_ptr {
 // template <class T, class D>
 // class unique_ptr<T[], D> {
 //  public:
-//   typedef implementation - defined pointer;
-//   typedef T element_type;
-//   typedef D deleter_type;
+//   using pointer = T*;
+//   using element_type = T;
+//   using deleter_type = Deleter;
 
 //   // constructors
 //   constexpr unique_ptr() noexcept;
-//   explicit unique_ptr(pointer p) noexcept;
-//   unique_ptr(pointer p, see below d) noexcept;
-//   unique_ptr(pointer p, see below d) noexcept;
-//   unique_ptr(unique_ptr&& u) noexcept;
+
+//   explicit unique_ptr(pointer p) noexcept : ptr_(p){};
+
+//   unique_ptr(unique_ptr&& u) noexcept : ptr_(u.release()){};
+
 //   unique_ptr(nullptr_t) noexcept : unique_ptr() {}
 
 //   // destructor
-//   ~unique_ptr();
+//   ~unique_ptr() { deleter_(ptr_); }
 
 //   // assignment
 //   unique_ptr& operator=(unique_ptr&& u) noexcept;
 //   unique_ptr& operator=(nullptr_t) noexcept;
 
 //   // observers
-//   T& operator[](size_t i) const;
-//   pointer get() const noexcept;
-//   deleter_type& get_deleter() noexcept;
-//   const deleter_type& get_deleter() const noexcept;
-//   explicit operator bool() const noexcept;
+//   T& operator[](size_t i) const { return *(ptr_ + i); }
+//   pointer get() const noexcept { return ptr_; }
+//   deleter_type& get_deleter() noexcept { return deleter_; }
+//   const deleter_type& get_deleter() const noexcept { return deleter_; }
+//   explicit operator bool() const noexcept { return get() != nullptr; }
 
 //   // modifiers
-//   pointer release() noexcept;
-//   void reset(pointer p = pointer()) noexcept;
-//   void reset(nullptr_t) noexcept;
-//   template <class U>
-//   void reset(U) = delete;
-//   void swap(unique_ptr& u) noexcept;
+//   pointer release() noexcept {
+//     pointer ptr = ptr_;
+//     ptr_ = nullptr;
+//     return ptr;
+//   }
+
+//   void reset(pointer p = pointer()) noexcept {
+//     if (p != ptr_) {
+//       auto old_ptr = release();
+//       ptr_ = p;
+//       deleter_(old_ptr);
+//     }
+//   }
+
+//  private:
+//   pointer ptr_{};
+//   deleter_type deleter_{};
 // };
 
 };  // namespace stl
 
-#endif // MEMORY_H_
+#endif  // MEMORY_H_
