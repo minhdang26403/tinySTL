@@ -14,7 +14,8 @@ PROGRAMS = type_traits \
 	tuple \
 	exprtmpl \
 	array \
-	vector
+	vector \
+	utility
 
 all: $(PROGRAMS)
 
@@ -37,6 +38,9 @@ array:$(TESTDIR)/array.cpp
 	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
 
 vector:$(TESTDIR)/vector.cpp
+	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
+
+utility:$(TESTDIR)/utility.cpp
 	$(CPP) $(CFLAGS) $^ -o $@ $(INCLUDEDIR)
 
 clean:
